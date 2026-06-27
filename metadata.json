@@ -1,0 +1,6 @@
+{
+  "name": "NutriScan Ghana",
+  "description": "Evaluate the health, sustainability, and localized context of Ghanaian plated meals and food products with AI analysis.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
