@@ -14,9 +14,14 @@ export default function App() {
   const [activeScanId, setActiveScanId] = useState<string | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
 
+  // Sharing states
+  const [isSharedMode, setIsSharedMode] = useState(false);
+  const [sharedResult, setSharedResult] = useState<FoodScanResult | null>(null);
+  const [sharedImageUrl, setSharedImageUrl] = useState<string | null>(null);
+
   const dashboardRef = useRef<HTMLDivElement | null>(null);
 
-  // Load history from localStorage on mount
+  // Load history from localStorage on mount & parse query share param
   useEffect(() => {
     try {
       const stored = localStorage.getItem("nutriscan_ghana_history");
@@ -25,6 +30,23 @@ export default function App() {
       }
     } catch (err) {
       console.error("Failed to load scan history from localStorage", err);
+    }
+
+    // Check for query parameter
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const shareData = params.get("share");
+      if (shareData) {
+        const decodedString = decodeURIComponent(escape(atob(shareData)));
+        const parsed = JSON.parse(decodedString);
+        if (parsed && parsed.foodName) {
+          setSharedResult(parsed);
+          setSharedImageUrl(parsed.imageUrl || null);
+          setIsSharedMode(true);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to decode shared report data", err);
     }
   }, []);
 
@@ -198,99 +220,131 @@ export default function App() {
           </div>
         )}
 
-        {/* Core Screen Layout (Grid) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
-          {/* LEFT/CENTER COLUMN: Scanner + Dynamic Dashboard (Span 8) */}
-          <div className="lg:col-span-8 space-y-8">
-            
-            {/* Uploader Card */}
-            <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-xs relative overflow-hidden">
-              {/* Corner decorative stamp */}
-              <div className="absolute right-0 top-0 w-20 h-20 bg-emerald-50/20 rounded-bl-full pointer-events-none flex items-center justify-center">
-                <Leaf className="h-6 w-6 text-emerald-700/15" />
-              </div>
-
-              <div className="space-y-4 relative">
-                <div>
-                  <h3 className="font-display font-bold text-base text-slate-800">
-                    Food Asset Scanner
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Upload an image or capture live using your camera.
-                  </p>
+        {/* Lightweight Shared Mode View OR Normal Interactive View */}
+        {isSharedMode && sharedResult ? (
+          <div className="max-w-4xl mx-auto space-y-8" id="shared-report-viewer">
+            <div className="bg-emerald-50 border border-emerald-100/70 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-emerald-900">
+              <div className="flex items-center gap-3">
+                <Sparkles className="h-5 w-5 text-emerald-700 animate-pulse-slow shrink-0" />
+                <div className="text-xs">
+                  <p className="font-bold">Viewing Shared Food Report</p>
+                  <p className="text-emerald-700/80">This verified report was generated via NutriScan Ghana. You can browse, print as a PDF, or run your own food analysis scan below.</p>
                 </div>
-
-                <Uploader
-                  onScanStart={handleScanStart}
-                  onScanComplete={handleScanComplete}
-                  onScanError={handleScanError}
-                />
               </div>
+              <button
+                onClick={() => {
+                  window.location.href = window.location.origin + window.location.pathname;
+                }}
+                className="px-4 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-semibold cursor-pointer shrink-0 transition-colors"
+              >
+                Create My Own Scan
+              </button>
             </div>
 
-            {/* Dashboard Container (Displays generated analysis) */}
-            {activeResult && (
-              <div ref={dashboardRef} className="pt-2">
-                <Dashboard
-                  result={activeResult}
-                  imageSrc={activeImage || undefined}
-                  onReset={handleReset}
-                />
-              </div>
-            )}
-
-          </div>
-
-          {/* RIGHT COLUMN: Samples Grid + Scan History Sidebar (Span 4) */}
-          <div className="lg:col-span-4 space-y-6">
-            
-            {/* Quick-Test Sample Selector */}
-            <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-xs">
-              <SampleGrid
-                onSelectSample={handleSelectSample}
-                activeSampleId={activeScanId || undefined}
-              />
-            </div>
-
-            {/* Scan History Logger */}
-            <HistoryList
-              history={history}
-              onSelectHistory={handleSelectHistory}
-              onDeleteHistory={handleDeleteHistory}
-              onClearHistory={handleClearHistory}
-              activeScanId={activeScanId || undefined}
+            <Dashboard
+              result={sharedResult}
+              imageSrc={sharedImageUrl || undefined}
+              onReset={() => {
+                window.location.href = window.location.origin + window.location.pathname;
+              }}
+              isSharedView={true}
             />
-
-            {/* Localized Ghanaian Nutrition Guidelines Info Card */}
-            <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-xs space-y-4">
-              <div className="flex items-center gap-2 text-slate-700">
-                <BookOpen className="h-4 w-4 text-emerald-700" />
-                <h4 className="font-display font-bold text-sm text-slate-800">Ghanaian Dietary Guides</h4>
-              </div>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                NutriScan Ghana advocates for the revitalisation of ancestral West African nutrition systems.
-              </p>
+          </div>
+        ) : (
+          /* Core Screen Layout (Grid) */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            {/* LEFT/CENTER COLUMN: Scanner + Dynamic Dashboard (Span 8) */}
+            <div className="lg:col-span-8 space-y-8">
               
-              <div className="space-y-2.5 pt-1">
-                <div className="flex items-start gap-2 text-[11px] text-slate-600">
-                  <span className="font-bold text-emerald-700 shrink-0">1.</span>
-                  <span><strong>Embrace Millet & Sorghum:</strong> Drought-tolerant grains packing higher fiber and protein compared to polished white rice.</span>
+              {/* Uploader Card */}
+              <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-xs relative overflow-hidden">
+                {/* Corner decorative stamp */}
+                <div className="absolute right-0 top-0 w-20 h-20 bg-emerald-50/20 rounded-bl-full pointer-events-none flex items-center justify-center">
+                  <Leaf className="h-6 w-6 text-emerald-700/15" />
                 </div>
-                <div className="flex items-start gap-2 text-[11px] text-slate-600">
-                  <span className="font-bold text-emerald-700 shrink-0">2.</span>
-                  <span><strong>Moderate Palm Bleaching:</strong> Red palm oil is highly rich in vitamin A & E; excessive heating/bleaching destroys these essential nutrients.</span>
-                </div>
-                <div className="flex items-start gap-2 text-[11px] text-slate-600">
-                  <span className="font-bold text-emerald-700 shrink-0">3.</span>
-                  <span><strong>Revive Dawadawa:</strong> Harness traditional fermented locust bean seasonings to add natural cardiovascular protection.</span>
+
+                <div className="space-y-4 relative">
+                  <div>
+                    <h3 className="font-display font-bold text-base text-slate-800">
+                      Food Asset Scanner
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Upload an image or capture live using your camera.
+                    </p>
+                  </div>
+
+                  <Uploader
+                    onScanStart={handleScanStart}
+                    onScanComplete={handleScanComplete}
+                    onScanError={handleScanError}
+                  />
                 </div>
               </div>
+
+              {/* Dashboard Container (Displays generated analysis) */}
+              {activeResult && (
+                <div ref={dashboardRef} className="pt-2">
+                  <Dashboard
+                    result={activeResult}
+                    imageSrc={activeImage || undefined}
+                    onReset={handleReset}
+                  />
+                </div>
+              )}
+
+            </div>
+
+            {/* RIGHT COLUMN: Samples Grid + Scan History Sidebar (Span 4) */}
+            <div className="lg:col-span-4 space-y-6">
+              
+              {/* Quick-Test Sample Selector */}
+              <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-xs">
+                <SampleGrid
+                  onSelectSample={handleSelectSample}
+                  activeSampleId={activeScanId || undefined}
+                />
+              </div>
+
+              {/* Scan History Logger */}
+              <HistoryList
+                history={history}
+                onSelectHistory={handleSelectHistory}
+                onDeleteHistory={handleDeleteHistory}
+                onClearHistory={handleClearHistory}
+                activeScanId={activeScanId || undefined}
+              />
+
+              {/* Localized Ghanaian Nutrition Guidelines Info Card */}
+              <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-xs space-y-4">
+                <div className="flex items-center gap-2 text-slate-700">
+                  <BookOpen className="h-4 w-4 text-emerald-700" />
+                  <h4 className="font-display font-bold text-sm text-slate-800">Ghanaian Dietary Guides</h4>
+                </div>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  NutriScan Ghana advocates for the revitalisation of ancestral West African nutrition systems.
+                </p>
+                
+                <div className="space-y-2.5 pt-1">
+                  <div className="flex items-start gap-2 text-[11px] text-slate-600">
+                    <span className="font-bold text-emerald-700 shrink-0">1.</span>
+                    <span><strong>Embrace Millet & Sorghum:</strong> Drought-tolerant grains packing higher fiber and protein compared to polished white rice.</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-[11px] text-slate-600">
+                    <span className="font-bold text-emerald-700 shrink-0">2.</span>
+                    <span><strong>Moderate Palm Bleaching:</strong> Red palm oil is highly rich in vitamin A & E; excessive heating/bleaching destroys these essential nutrients.</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-[11px] text-slate-600">
+                    <span className="font-bold text-emerald-700 shrink-0">3.</span>
+                    <span><strong>Revive Dawadawa:</strong> Harness traditional fermented locust bean seasonings to add natural cardiovascular protection.</span>
+                  </div>
+                </div>
+              </div>
+
             </div>
 
           </div>
-
-        </div>
+        )}
 
       </main>
 
